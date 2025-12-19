@@ -8,10 +8,16 @@ const HeroSection = () => {
   useEffect(() => {
     getPodsWithStats()
       .then((res) => {
+        console.log("API Response:", res);
+        console.log("Result:", res.result);
+        console.log("Total count:", res.result?.total_count);
         // Access the nested result from your API
-        setTotalPods(res.result?.total_count || 0);
+        const count = res.result?.total_count ?? 0;
+        setTotalPods(count);
       })
-      .catch(console.error)
+      .catch((error) => {
+        console.error("Error fetching pods:", error);
+      })
       .finally(() => setLoading(false));
   }, []);
 

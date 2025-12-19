@@ -68,6 +68,10 @@ export default async function handler(req: Request) {
 
     const data = JSON.parse(text);
     console.log("Parsed data:", data);
+    console.log("Data result:", data.result);
+    console.log("Total count:", data.result?.total_count);
+    
+    // Ensure we're returning the full JSON-RPC response structure
     return new Response(JSON.stringify(data), {
       status: 200,
       headers: {

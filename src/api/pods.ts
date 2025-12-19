@@ -1,5 +1,21 @@
-// src/api/rpc.ts (frontend helper, NOT the Vercel api folder)
-export default async function getPodsWithStats() {
+type JsonRpcResponse<T = any> = {
+  jsonrpc: "2.0";
+  id: number;
+  result?: T;
+  error?: {
+    code: number;
+    message: string;
+    data?: any;
+  } | null;
+};
+
+type PodsWithStatsResult = {
+  pods: any[];
+  total_count: number;
+};
+
+// Frontend helper to call the Vercel API route
+export default async function getPodsWithStats(): Promise<JsonRpcResponse<PodsWithStatsResult>> {
   const res = await fetch("/api/rpc", {
     method: "POST",
     headers: {
@@ -13,8 +29,15 @@ export default async function getPodsWithStats() {
   });
 
   if (!res.ok) {
-    throw new Error("Failed to fetch pods");
+    const errorText = await res.text().catch(() => "Unknown error");
+    throw new Error(`Failed to fetch pods: ${res.status} ${errorText}`);
   }
 
-  return res.json();
+  const data = (await res.json()) as JsonRpcResponse<PodsWithStatsResult>;
+
+  if (data.error) {
+    throw new Error(data.error.message || "RPC error occurred");
+  }
+
+  return data;
 }
