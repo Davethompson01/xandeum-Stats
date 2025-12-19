@@ -7,8 +7,7 @@ export const navBarPages = () => {
   return (
     <>
       <NavBar />
-      <HeroSection />
-    </>
+      <HeroSection />    </>
   );
 };
 
