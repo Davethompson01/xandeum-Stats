@@ -36,49 +36,87 @@ export default async function handler(req: Request) {
     console.log("Request body:", body);
 
     console.log("Fetching from RPC...");
-    const response = await fetch("http://161.97.97.41:6000/rpc", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        method: "get-pods-with-stats",
-        id: 1,
-      }),
-    });
-
-    console.log("RPC response status:", response.status);
-    const text = await response.text(); // debug-safe
-    console.log("RPC response text:", text);
-
-    if (!response.ok) {
-      console.error("RPC error:", text);
-      return new Response(
-        JSON.stringify({ error: "RPC failed", details: text }),
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      );
-    }
-
-    const data = JSON.parse(text);
-    console.log("Parsed data:", data);
-    console.log("Data result:", data.result);
-    console.log("Total count:", data.result?.total_count);
+    const startTime = Date.now();
     
-    // Ensure we're returning the full JSON-RPC response structure
-    return new Response(JSON.stringify(data), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-    });
+    // Create an AbortController for timeout handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    try {
+      const response = await fetch("http://161.97.97.41:6000/rpc", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Connection": "keep-alive",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "get-pods-with-stats",
+          id: 1,
+        }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      const elapsedTime = Date.now() - startTime;
+      console.log(`RPC fetch completed in ${elapsedTime}ms`);
+
+      console.log("RPC response status:", response.status);
+      const text = await response.text(); // debug-safe
+      console.log("RPC response text length:", text.length);
+
+      if (!response.ok) {
+        console.error("RPC error:", text);
+        return new Response(
+          JSON.stringify({ error: "RPC failed", details: text }),
+          {
+            status: 500,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      const data = JSON.parse(text);
+      console.log("Parsed data:", data);
+      console.log("Data result:", data.result);
+      console.log("Total count:", data.result?.total_count);
+      
+      // Ensure we're returning the full JSON-RPC response structure
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      const elapsedTime = Date.now() - startTime;
+      
+      if (fetchError.name === "AbortError") {
+        console.error(`RPC request timed out after ${elapsedTime}ms`);
+        return new Response(
+          JSON.stringify({
+            error: "Request timeout",
+            message: "The RPC server took too long to respond. Please try again.",
+            elapsedTime,
+          }),
+          {
+            status: 504,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+      
+      console.error("Fetch error:", fetchError);
+      throw fetchError; // Re-throw to be caught by outer catch
+    }
   } catch (error: any) {
     console.error("Serverless error:", error);
     return new Response(

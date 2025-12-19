@@ -4,26 +4,40 @@ import getPodsWithStats from "../../api/pods";
 const HeroSection = () => {
   const [totalPods, setTotalPods] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     console.log("HeroSection: Starting to fetch pods...");
+    const startTime = Date.now();
+    
     getPodsWithStats()
       .then((res) => {
-        console.log("HeroSection: API Response received:", res);
+        const elapsedTime = Date.now() - startTime;
+        console.log(`HeroSection: API Response received after ${elapsedTime}ms:`, res);
         console.log("HeroSection: Result:", res.result);
         console.log("HeroSection: Total count:", res.result?.total_count);
         // Access the nested result from your API
         const count = res.result?.total_count ?? 0;
         console.log("HeroSection: Setting totalPods to:", count);
         setTotalPods(count);
+        setError(null);
       })
       .catch((error) => {
-        console.error("HeroSection: Error fetching pods:", error);
+        const elapsedTime = Date.now() - startTime;
+        console.error(`HeroSection: Error fetching pods after ${elapsedTime}ms:`, error);
         console.error("HeroSection: Error details:", {
           message: error.message,
           stack: error.stack,
           name: error.name,
         });
+        
+        // Set error message for timeout
+        if (error.message?.includes("timeout") || error.message?.includes("504")) {
+          setError("Request timed out. The server is taking longer than expected.");
+        } else {
+          setError("Failed to load data. Please try again.");
+        }
+        
         // Set to 0 on error so it doesn't show loading forever
         setTotalPods(0);
       })
@@ -41,8 +55,19 @@ const HeroSection = () => {
         <div className="bg-[#111317] w-[150px] sm:w-[180px] md:w-[200px] h-[100px] rounded-[10px] border-[#ccc] border-[0.5px] flex flex-col justify-center items-center">
           <p>Total Active pNodes</p>
           <h1 className="text-2xl font-semibold">
-            {loading ? "—" : totalPods ?? "—"}
+            {loading ? (
+              <span className="inline-flex items-center">
+                <span className="animate-pulse">—</span>
+              </span>
+            ) : error ? (
+              <span className="text-red-400 text-sm" title={error}>Error</span>
+            ) : (
+              totalPods ?? "—"
+            )}
           </h1>
+          {loading && (
+            <p className="text-xs text-gray-400 mt-1">Loading...</p>
+          )}
         </div>
         
 
