@@ -1,7 +1,10 @@
+export const config = {
+  runtime: "nodejs",
+};
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
@@ -10,18 +13,24 @@ export default async function handler(req: any, res: any) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "get-pods-with-stats",
+        id: 1,
+      }),
     });
 
+    const text = await response.text(); // debug-safe
+
     if (!response.ok) {
-      res.status(response.status).json({ error: "Failed to fetch from RPC" });
-      return;
+      console.error("RPC error:", text);
+      return res.status(500).json({ error: "RPC failed", details: text });
     }
 
-    const data = await response.json();
-    res.status(200).json(data);
+    const data = JSON.parse(text);
+    return res.status(200).json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Serverless error:", error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
