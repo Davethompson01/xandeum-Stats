@@ -31,9 +31,11 @@ const HeroSection = () => {
           name: error.name,
         });
         
-        // Set error message for timeout
+        // Set error message for different error types
         if (error.message?.includes("timeout") || error.message?.includes("504")) {
           setError("Request timed out. The server is taking longer than expected.");
+        } else if (error.message?.includes("Failed to fetch") || error.message?.includes("ERR_CONNECTION_CLOSED")) {
+          setError("Connection closed. The request took too long. Retrying...");
         } else {
           setError("Failed to load data. Please try again.");
         }

@@ -1,5 +1,6 @@
 export const config = {
   runtime: "nodejs",
+  maxDuration: 60, // Maximum execution time in seconds (Pro plan allows up to 300s)
 };
 
 export default async function handler(req: Request) {
@@ -39,8 +40,12 @@ export default async function handler(req: Request) {
     const startTime = Date.now();
     
     // Create an AbortController for timeout handling
+    // Set timeout to 25 seconds to allow for slow RPC responses
+    // but still fail before Vercel's execution limit kills us
+    // Vercel Hobby: 10s limit, Pro: 60s limit (we set maxDuration to 60 in config)
+    const timeoutMs = 25000; // 25 seconds - allows slow RPC but fails before Vercel kills us
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
     try {
       const response = await fetch("http://161.97.97.41:6000/rpc", {
