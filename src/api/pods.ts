@@ -5,6 +5,11 @@ export default async function getPodsWithStats() {
     headers: {
       "Content-Type": "application/json",
     },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      method: "get-pods-with-stats",
+      id: 1,
+    }),
   });
 
   if (!res.ok) {
