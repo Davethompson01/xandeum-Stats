@@ -6,19 +6,31 @@ const HeroSection = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log("HeroSection: Starting to fetch pods...");
     getPodsWithStats()
       .then((res) => {
-        console.log("API Response:", res);
-        console.log("Result:", res.result);
-        console.log("Total count:", res.result?.total_count);
+        console.log("HeroSection: API Response received:", res);
+        console.log("HeroSection: Result:", res.result);
+        console.log("HeroSection: Total count:", res.result?.total_count);
         // Access the nested result from your API
         const count = res.result?.total_count ?? 0;
+        console.log("HeroSection: Setting totalPods to:", count);
         setTotalPods(count);
       })
       .catch((error) => {
-        console.error("Error fetching pods:", error);
+        console.error("HeroSection: Error fetching pods:", error);
+        console.error("HeroSection: Error details:", {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        });
+        // Set to 0 on error so it doesn't show loading forever
+        setTotalPods(0);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        console.log("HeroSection: Request completed, setting loading to false");
+        setLoading(false);
+      });
   }, []);
 
 
@@ -29,7 +41,7 @@ const HeroSection = () => {
         <div className="bg-[#111317] w-[150px] sm:w-[180px] md:w-[200px] h-[100px] rounded-[10px] border-[#ccc] border-[0.5px] flex flex-col justify-center items-center">
           <p>Total Active pNodes</p>
           <h1 className="text-2xl font-semibold">
-            {loading ? "—" : totalPods}
+            {loading ? "—" : totalPods ?? "—"}
           </h1>
         </div>
         
