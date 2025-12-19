@@ -2,15 +2,39 @@ export const config = {
   runtime: "nodejs",
 };
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: Request) {
   console.log("Handler called with method:", req.method);
-  console.log("Request body:", req.body);
-
+  
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+    });
+  }
+  
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+    return new Response(
+      JSON.stringify({ error: "Method not allowed" }),
+      {
+        status: 405,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      }
+    );
   }
 
   try {
+    // Parse request body if needed (though we're not using it in this case)
+    const body = await req.json().catch(() => ({}));
+    console.log("Request body:", body);
+
     console.log("Fetching from RPC...");
     const response = await fetch("http://161.97.97.41:6000/rpc", {
       method: "POST",
@@ -30,14 +54,41 @@ export default async function handler(req: any, res: any) {
 
     if (!response.ok) {
       console.error("RPC error:", text);
-      return res.status(500).json({ error: "RPC failed", details: text });
+      return new Response(
+        JSON.stringify({ error: "RPC failed", details: text }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
     }
 
     const data = JSON.parse(text);
     console.log("Parsed data:", data);
-    return res.status(200).json(data);
-  } catch (error) {
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  } catch (error: any) {
     console.error("Serverless error:", error);
-    return res.status(500).json({ error: "Internal server error", details: error.message });
+    return new Response(
+      JSON.stringify({
+        error: "Internal server error",
+        details: error?.message || String(error),
+      }),
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      }
+    );
   }
 }
