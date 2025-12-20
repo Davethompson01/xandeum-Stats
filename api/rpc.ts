@@ -1,79 +1,55 @@
+// /api/rpc.ts
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+
 export const config = {
   runtime: "nodejs",
-  maxDuration: 60, // Maximum execution time in seconds (Pro plan allows up to 300s)
+  maxDuration: 60,
 };
 
-export default async function handler(req: Request) {
-  // Handle CORS preflight
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // ---- CORS ----
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-    });
+    return res.status(200).end();
   }
-  
+
   if (req.method !== "POST") {
-    return new Response(
-      JSON.stringify({ error: "Method not allowed" }),
-      {
-        status: 405,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-      }
-    );
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
-    // Get the request body as text - minimal processing, just forward it
-    // This makes it a lightweight proxy like Vite's dev server
-    const bodyText = await req.text();
-    
-    // Forward the request directly to the RPC server
-    // This acts like Vite's proxy - minimal overhead, just pass through
-    const response = await fetch("http://161.97.97.41:6000/rpc", {
+    // Ensure body exists
+    if (!req.body) {
+      return res.status(400).json({ error: "Missing request body" });
+    }
+
+    // Forward request to RPC server
+    const rpcResponse = await fetch("http://161.97.97.41:6000/rpc", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Connection": "keep-alive",
       },
-      body: bodyText, // Forward the original body text
+      body: JSON.stringify(req.body),
     });
 
-    // Get the response as text to forward it
-    const responseText = await response.text();
-    
-    // Return the response with CORS headers
-    // This is a true pass-through proxy - we don't parse or modify the response
-    return new Response(responseText, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: {
-        "Content-Type": response.headers.get("Content-Type") || "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-    });
-  } catch (error: any) {
-    console.error("Proxy error:", error);
-    return new Response(
-      JSON.stringify({
-        error: "Proxy error",
-        message: error?.message || String(error),
-      }),
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-      }
+    const text = await rpcResponse.text();
+
+    // Forward status + content type
+    res.setHeader(
+      "Content-Type",
+      rpcResponse.headers.get("content-type") || "application/json"
     );
+
+    return res.status(rpcResponse.status).send(text);
+  } catch (error: any) {
+    console.error("RPC proxy error:", error);
+
+    return res.status(500).json({
+      error: "Proxy error",
+      message: error?.message || "Unknown error",
+    });
   }
 }
